@@ -1,0 +1,74 @@
+<%- include('partials/header') %>
+
+<h1 class="page-title">Sellers &amp; accounts</h1>
+<% if (msg) { %><p class="flash"><%= msg %></p><% } %>
+
+<div class="two-col">
+  <section class="panel">
+    <h2>Accounts</h2>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Username</th><th>Role</th><th class="num">Today's sales</th><th class="num">Today's revenue</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% users.forEach(u => { %>
+        <tr>
+          <td><%= u.name %><%= u.id === user.id ? ' (you)' : '' %></td>
+          <td class="mono muted"><%= u.username %></td>
+          <td><%= u.role %></td>
+          <td class="num mono"><%= u.today_transactions %></td>
+          <td class="num mono"><%= kes(u.today_revenue) %></td>
+          <td><%= u.active ? 'active' : 'deactivated' %></td>
+          <td class="num">
+            <% if (u.id !== user.id) { %>
+            <form method="POST" action="/users/<%= u.id %>/toggle" style="display:inline">
+              <button type="submit" class="btn ghost btn-small"><%= u.active ? 'Deactivate' : 'Activate' %></button>
+            </form>
+            <% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <p class="muted small">Deactivated accounts cannot sign in, but their sales history stays on record.</p>
+  </section>
+
+  <div>
+    <section class="panel form-panel">
+      <h2>Add account</h2>
+      <form method="POST" action="/users">
+        <label>Full name
+          <input type="text" name="name" required placeholder="e.g. Mary Wanjiku" />
+        </label>
+        <label>Username
+          <input type="text" name="username" required placeholder="e.g. mary" />
+        </label>
+        <label>Password
+          <input type="password" name="password" required minlength="6" placeholder="at least 6 characters" />
+        </label>
+        <label>Role
+          <select name="role">
+            <option value="seller" selected>Seller — record sales only</option>
+            <option value="owner">Owner — full access</option>
+          </select>
+        </label>
+        <button type="submit" class="btn">Create account</button>
+      </form>
+    </section>
+
+    <section class="panel form-panel">
+      <h2>Change my password</h2>
+      <form method="POST" action="/users/password">
+        <label>Current password
+          <input type="password" name="current_password" required autocomplete="current-password" />
+        </label>
+        <label>New password
+          <input type="password" name="new_password" required minlength="6" autocomplete="new-password" />
+        </label>
+        <button type="submit" class="btn ghost">Change password</button>
+      </form>
+    </section>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

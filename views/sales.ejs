@@ -1,0 +1,90 @@
+<%- include('partials/header') %>
+
+<h1 class="page-title"><%= user.role === 'owner' ? 'Sales' : 'Record sales' %></h1>
+<% if (msg) { %><p class="flash"><%= msg %></p><% } %>
+
+<div class="two-col">
+  <section class="panel">
+    <h2><%= user.role === 'owner' ? 'Outgoing ledger' : 'My sales today' %></h2>
+    <table>
+      <thead>
+        <% if (user.role === 'owner') { %>
+        <tr><th>Date</th><th>Product</th><th>Sold by</th><th class="num">Qty</th><th class="num">Sell price</th><th class="num">Revenue</th><th class="num">Profit</th></tr>
+        <% } else { %>
+        <tr><th>Time</th><th>Product</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th></tr>
+        <% } %>
+      </thead>
+      <tbody>
+        <% if (!sales.length) { %>
+          <tr><td colspan="7" class="muted"><%= user.role === 'owner' ? 'No sales recorded yet.' : 'No sales yet today. Record your first one on the right.' %></td></tr>
+        <% } %>
+        <% sales.forEach(s => { %>
+        <tr>
+          <% if (user.role === 'owner') { %>
+          <td class="mono muted"><%= new Date(s.sold_at).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' }) %></td>
+          <td><%= s.product_name %></td>
+          <td class="muted"><%= s.seller_name || '—' %></td>
+          <td class="num mono"><%= s.quantity %></td>
+          <td class="num mono"><%= kes(s.selling_price) %></td>
+          <td class="num mono"><%= kes(s.line_revenue) %></td>
+          <td class="num mono <%= s.line_profit >= 0 ? 'gain' : 'loss' %>"><%= kes(s.line_profit) %></td>
+          <% } else { %>
+          <td class="mono muted"><%= new Date(s.sold_at).toLocaleTimeString('en-KE', { timeStyle: 'short' }) %></td>
+          <td><%= s.product_name %></td>
+          <td class="num mono"><%= s.quantity %></td>
+          <td class="num mono"><%= kes(s.selling_price) %></td>
+          <td class="num mono"><%= kes(s.line_revenue) %></td>
+          <% } %>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel form-panel">
+    <h2>Record sale</h2>
+    <form method="POST" action="/sales">
+      <label>Product (stock · price)
+        <select name="product_id" id="product_id" required onchange="showPrice()">
+          <option value="">Choose product…</option>
+          <% products.forEach(p => { %>
+            <option value="<%= p.id %>" data-price="<%= p.selling_price !== null ? p.selling_price : '' %>" <%= p.on_hand <= 0 ? 'disabled' : '' %>>
+              <%= p.name %> — <%= p.on_hand %> left<%= p.selling_price !== null ? ' · ' + kes(p.selling_price) : '' %>
+            </option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Quantity sold
+        <input type="number" name="quantity" min="1" required />
+      </label>
+      <% if (user.role === 'owner') { %>
+      <label>Selling price per unit (KES)
+        <input type="number" name="selling_price" id="selling_price" min="0" step="0.01" placeholder="leave blank to use preset" />
+      </label>
+      <% } else { %>
+      <label>Price per unit (set by owner)
+        <input type="text" id="price_display" value="—" readonly />
+      </label>
+      <% } %>
+      <button type="submit" class="btn">Record sale</button>
+    </form>
+    <% if (user.role === 'owner') { %>
+    <p class="muted small">Sellers always sell at each product's preset price. Set it under <a href="/products">Products</a>.</p>
+    <% } else { %>
+    <p class="muted small">The price is fixed by the owner and applied automatically.</p>
+    <% } %>
+  </section>
+</div>
+
+<script>
+function showPrice() {
+  var sel = document.getElementById('product_id');
+  var price = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].getAttribute('data-price') : '';
+  var display = document.getElementById('price_display');
+  var ownerInput = document.getElementById('selling_price');
+  if (display) display.value = price ? 'KES ' + Number(price).toFixed(2) : 'Not set — ask the owner';
+  if (ownerInput) ownerInput.placeholder = price ? 'preset: ' + Number(price).toFixed(2) : 'no preset — type a price';
+}
+</script>
+
+<%- include('partials/footer') %>

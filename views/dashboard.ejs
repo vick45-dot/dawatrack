@@ -1,0 +1,116 @@
+<%- include('partials/header') %>
+
+<h1 class="page-title">Today at the counter</h1>
+
+<section class="stat-row">
+  <div class="stat">
+    <span class="stat-label">Today's revenue</span>
+    <span class="stat-value money"><%= kes(today.revenue) %></span>
+    <span class="stat-sub"><%= today.transactions %> transaction<%= today.transactions === 1 ? '' : 's' %></span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Today's profit</span>
+    <span class="stat-value money <%= today.profit >= 0 ? 'gain' : 'loss' %>"><%= kes(today.profit) %></span>
+    <span class="stat-sub">selling price − cost, per sale</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">This month's profit</span>
+    <span class="stat-value money <%= month.profit >= 0 ? 'gain' : 'loss' %>"><%= kes(month.profit) %></span>
+    <span class="stat-sub">revenue <%= kes(month.revenue) %></span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Stock value on shelf</span>
+    <span class="stat-value money"><%= kes(stockValue) %></span>
+    <span class="stat-sub">at average buying cost</span>
+  </div>
+</section>
+
+<% if (lowStock.length || expiring.length) { %>
+<section class="alert-row">
+  <% if (lowStock.length) { %>
+  <div class="panel alert-panel">
+    <h2>Low stock — reorder soon</h2>
+    <ul class="alert-list">
+      <% lowStock.forEach(item => { %>
+      <li><strong><%= item.name %></strong> — <span class="mono"><%= item.on_hand %></span> left (reorder at <%= item.reorder_level %>)</li>
+      <% }) %>
+    </ul>
+  </div>
+  <% } %>
+  <% if (expiring.length) { %>
+  <div class="panel alert-panel warn">
+    <h2>Expiring within 90 days</h2>
+    <ul class="alert-list">
+      <% expiring.forEach(b => { %>
+      <li><strong><%= b.name %></strong> batch <%= b.batch_number || '—' %> —
+        <span class="mono"><%= b.days_left %></span> day<%= b.days_left === 1 ? '' : 's' %> left</li>
+      <% }) %>
+    </ul>
+  </div>
+  <% } %>
+</section>
+<% } %>
+
+<div class="two-col">
+  <section class="panel">
+    <h2>Stock position</h2>
+    <table>
+      <thead>
+        <tr><th>Product</th><th>Category</th><th class="num">On hand</th><th class="num">Avg cost</th><th class="num">Value</th></tr>
+      </thead>
+      <tbody>
+        <% stock.forEach(item => { %>
+        <tr class="<%= item.on_hand <= item.reorder_level ? 'row-low' : '' %>">
+          <td><%= item.name %></td>
+          <td class="muted"><%= item.category %></td>
+          <td class="num mono"><%= item.on_hand %> <%= item.unit %></td>
+          <td class="num mono"><%= kes(item.avg_cost) %></td>
+          <td class="num mono"><%= kes(item.stock_value) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>Top earners this month</h2>
+    <% if (!topProducts.length) { %>
+      <p class="muted">No sales yet this month. Record one under <a href="/sales">Sales</a>.</p>
+    <% } else { %>
+    <table>
+      <thead><tr><th>Product</th><th class="num">Units</th><th class="num">Profit</th></tr></thead>
+      <tbody>
+        <% topProducts.forEach(t => { %>
+        <tr>
+          <td><%= t.name %></td>
+          <td class="num mono"><%= t.units %></td>
+          <td class="num mono gain"><%= kes(t.profit) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+
+    <h2 style="margin-top:1.4rem">Sales by seller today</h2>
+    <% if (!sellerToday.length) { %>
+      <p class="muted">Nothing sold yet today.</p>
+    <% } else { %>
+    <table>
+      <thead><tr><th>Seller</th><th class="num">Sales</th><th class="num">Revenue</th><th class="num">Profit</th></tr></thead>
+      <tbody>
+        <% sellerToday.forEach(s => { %>
+        <tr>
+          <td><%= s.seller_name %></td>
+          <td class="num mono"><%= s.transactions %></td>
+          <td class="num mono"><%= kes(s.revenue) %></td>
+          <td class="num mono gain"><%= kes(s.profit) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+    <p class="panel-link"><a href="/analytics">Open full analytics →</a></p>
+  </section>
+</div>
+
+<%- include('partials/footer') %>

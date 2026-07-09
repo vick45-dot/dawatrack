@@ -1,0 +1,65 @@
+<%- include('partials/header') %>
+
+<h1 class="page-title">Stock in</h1>
+<% if (msg) { %><p class="flash"><%= msg %></p><% } %>
+
+<div class="two-col">
+  <section class="panel">
+    <h2>Incoming ledger</h2>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Product</th><th>Supplier</th><th>Batch</th><th>Expiry</th><th class="num">Qty</th><th class="num">Buy price</th><th class="num">Total</th></tr>
+      </thead>
+      <tbody>
+        <% if (!purchases.length) { %>
+          <tr><td colspan="8" class="muted">Nothing received yet. Record your first delivery on the right.</td></tr>
+        <% } %>
+        <% purchases.forEach(pu => { %>
+        <tr>
+          <td class="mono muted"><%= new Date(pu.received_at).toLocaleDateString('en-KE') %></td>
+          <td><%= pu.product_name %></td>
+          <td class="muted"><%= pu.supplier || '—' %></td>
+          <td class="mono muted"><%= pu.batch_number || '—' %></td>
+          <td class="mono muted"><%= pu.expiry_date ? new Date(pu.expiry_date).toLocaleDateString('en-KE') : '—' %></td>
+          <td class="num mono"><%= pu.quantity %></td>
+          <td class="num mono"><%= kes(pu.buying_price) %></td>
+          <td class="num mono"><%= kes(pu.quantity * pu.buying_price) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel form-panel">
+    <h2>Receive stock</h2>
+    <form method="POST" action="/purchases">
+      <label>Product
+        <select name="product_id" required>
+          <option value="">Choose product…</option>
+          <% products.forEach(p => { %>
+            <option value="<%= p.id %>"><%= p.name %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Supplier
+        <input type="text" name="supplier" placeholder="e.g. Dawa Pharma Ltd" />
+      </label>
+      <label>Batch number
+        <input type="text" name="batch_number" placeholder="e.g. PAN-2601" />
+      </label>
+      <label>Expiry date
+        <input type="date" name="expiry_date" />
+      </label>
+      <label>Quantity received
+        <input type="number" name="quantity" min="1" required />
+      </label>
+      <label>Buying price per unit (KES)
+        <input type="number" name="buying_price" min="0" step="0.01" required />
+      </label>
+      <button type="submit" class="btn">Record delivery</button>
+    </form>
+    <p class="muted small">New product? Add it under <a href="/products">Products</a> first.</p>
+  </section>
+</div>
+
+<%- include('partials/footer') %>

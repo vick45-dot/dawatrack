@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DawaTrack — Chemist Stock &amp; Profit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="<%= user && user.role === 'owner' ? '/' : '/sales' %>">
+      <span class="brand-cross">✚</span> Dawa<strong>Track</strong>
+    </a>
+    <nav>
+      <% if (user && user.role === 'owner') { %>
+      <a href="/"          class="<%= page === 'dashboard' ? 'active' : '' %>">Dashboard</a>
+      <a href="/purchases" class="<%= page === 'purchases' ? 'active' : '' %>">Stock In</a>
+      <a href="/sales"     class="<%= page === 'sales'     ? 'active' : '' %>">Sales</a>
+      <a href="/products"  class="<%= page === 'products'  ? 'active' : '' %>">Products</a>
+      <a href="/analytics" class="<%= page === 'analytics' ? 'active' : '' %>">Analytics</a>
+      <a href="/users"     class="<%= page === 'users'     ? 'active' : '' %>">Sellers</a>
+      <% } else if (user) { %>
+      <a href="/sales" class="active">Sales</a>
+      <% } %>
+    </nav>
+    <% if (user) { %>
+    <div class="userbox">
+      <span class="userbox-name"><%= user.name %> · <%= user.role %></span>
+      <form method="POST" action="/logout">
+        <button type="submit" class="btn ghost btn-small btn-light">Sign out</button>
+      </form>
+    </div>
+    <% } %>
+  </header>
+  <main class="wrap">

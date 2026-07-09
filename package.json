@@ -1,0 +1,21 @@
+{
+  "name": "dawatrack",
+  "version": "1.0.0",
+  "description": "Chemist stock & profit management system - incoming/outgoing stock with daily, weekly, monthly and yearly profit analysis",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express-session": "^1.18.0",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "mysql2": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

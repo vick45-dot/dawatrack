@@ -1,0 +1,81 @@
+<%- include('partials/header') %>
+
+<h1 class="page-title">Profit &amp; loss</h1>
+
+<nav class="period-switch">
+  <a href="/analytics?period=daily"   class="<%= period === 'daily'   ? 'active' : '' %>">Daily</a>
+  <a href="/analytics?period=weekly"  class="<%= period === 'weekly'  ? 'active' : '' %>">Weekly</a>
+  <a href="/analytics?period=monthly" class="<%= period === 'monthly' ? 'active' : '' %>">Monthly</a>
+  <a href="/analytics?period=yearly"  class="<%= period === 'yearly'  ? 'active' : '' %>">Yearly</a>
+</nav>
+
+<section class="stat-row">
+  <div class="stat">
+    <span class="stat-label">Revenue — <%= periodLabel.toLowerCase() %></span>
+    <span class="stat-value money"><%= kes(totals.revenue) %></span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Cost of goods sold</span>
+    <span class="stat-value money"><%= kes(totals.cost) %></span>
+  </div>
+  <div class="stat">
+    <span class="stat-label"><%= totals.profit >= 0 ? 'Profit' : 'Loss' %></span>
+    <span class="stat-value money <%= totals.profit >= 0 ? 'gain' : 'loss' %>"><%= kes(totals.profit) %></span>
+    <span class="stat-sub">
+      margin <%= totals.revenue > 0 ? ((totals.profit / totals.revenue) * 100).toFixed(1) : '0.0' %>%
+    </span>
+  </div>
+</section>
+
+<section class="panel">
+  <h2><%= periodLabel %></h2>
+  <% if (!rows.length) { %>
+    <p class="muted">No sales in this period yet.</p>
+  <% } else { %>
+    <div class="chart-box"><canvas id="plChart"></canvas></div>
+    <table>
+      <thead>
+        <tr><th>Period</th><th class="num">Revenue</th><th class="num">Cost</th><th class="num">Profit / loss</th><th class="num">Margin</th></tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(r => { %>
+        <tr>
+          <td class="mono"><%= r.bucket %></td>
+          <td class="num mono"><%= kes(r.revenue) %></td>
+          <td class="num mono"><%= kes(r.cost) %></td>
+          <td class="num mono <%= r.profit >= 0 ? 'gain' : 'loss' %>"><%= kes(r.profit) %></td>
+          <td class="num mono"><%= r.revenue > 0 ? ((r.profit / r.revenue) * 100).toFixed(1) : '0.0' %>%</td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  const data = <%- chartData %>;
+  if (data.labels.length) {
+    new Chart(document.getElementById('plChart'), {
+      type: 'bar',
+      data: {
+        labels: data.labels,
+        datasets: [
+          { label: 'Revenue (KES)', data: data.revenue, backgroundColor: 'rgba(14,107,92,0.25)', borderColor: '#0E6B5C', borderWidth: 1.5 },
+          { label: 'Profit (KES)',  data: data.profit,  backgroundColor: '#0E6B5C' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { font: { family: 'IBM Plex Sans' } } } },
+        scales: {
+          y: { ticks: { font: { family: 'IBM Plex Mono' } } },
+          x: { ticks: { font: { family: 'IBM Plex Mono' } } }
+        }
+      }
+    });
+  }
+</script>
+
+<%- include('partials/footer') %>
