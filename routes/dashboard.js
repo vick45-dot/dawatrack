@@ -73,7 +73,7 @@ router.get('/', async (req, res, next) => {
              SUM(s.quantity * (s.selling_price - s.cost_price))    AS profit
       FROM sales s JOIN products p ON p.id = s.product_id
       WHERE YEAR(s.sold_at) = YEAR(CURDATE()) AND MONTH(s.sold_at) = MONTH(CURDATE())
-      GROUP BY p.id ORDER BY profit DESC LIMIT 5
+      GROUP BY p.id, p.name ORDER BY profit DESC LIMIT 5
     `);
 
     // Revenue by payment method today
@@ -92,7 +92,7 @@ router.get('/', async (req, res, next) => {
       FROM sales s
       LEFT JOIN users u ON u.id = s.user_id
       WHERE DATE(s.sold_at) = CURDATE()
-      GROUP BY s.user_id
+      GROUP BY s.user_id, u.name
       ORDER BY revenue DESC
     `);
 
@@ -107,7 +107,7 @@ const PERIODS = {
   daily: {
     label: 'Last 30 days',
     sql: `
-      SELECT DATE_FORMAT(sold_at, '%d %b') AS bucket,
+      SELECT DATE_FORMAT(MIN(sold_at), '%d %b') AS bucket,
              SUM(quantity * selling_price)                AS revenue,
              SUM(quantity * cost_price)                   AS cost,
              SUM(quantity * (selling_price - cost_price)) AS profit
@@ -118,7 +118,7 @@ const PERIODS = {
   weekly: {
     label: 'Last 12 weeks',
     sql: `
-      SELECT CONCAT('Wk ', WEEK(sold_at, 1)) AS bucket,
+      SELECT CONCAT('Wk ', WEEK(MIN(sold_at), 1)) AS bucket,
              SUM(quantity * selling_price)                AS revenue,
              SUM(quantity * cost_price)                   AS cost,
              SUM(quantity * (selling_price - cost_price)) AS profit
@@ -129,7 +129,7 @@ const PERIODS = {
   monthly: {
     label: 'Last 12 months',
     sql: `
-      SELECT DATE_FORMAT(sold_at, '%b %Y') AS bucket,
+      SELECT DATE_FORMAT(MIN(sold_at), '%b %Y') AS bucket,
              SUM(quantity * selling_price)                AS revenue,
              SUM(quantity * cost_price)                   AS cost,
              SUM(quantity * (selling_price - cost_price)) AS profit
