@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS receipts (
   id                  INT AUTO_INCREMENT PRIMARY KEY,
   user_id             INT NULL,
   shift_id            INT NULL,
-  payment_method      ENUM('cash','mpesa','card','paypal','applepay','other') NOT NULL,
+  payment_method      ENUM('cash','mpesa','card','paypal','applepay','bank','other') NOT NULL,
   payment_ref         VARCHAR(80) NULL,
   status              ENUM('pending','paid','failed') NOT NULL DEFAULT 'paid',
   total               DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -115,3 +115,18 @@ CREATE TABLE IF NOT EXISTS sales (
   INDEX idx_sales_user (user_id),
   INDEX idx_sales_date (sold_at)
 ) ENGINE=InnoDB;
+
+-- Owner-configurable settings (payment methods, M-Pesa setup).
+CREATE TABLE IF NOT EXISTS settings (
+  name       VARCHAR(64) PRIMARY KEY,
+  value      TEXT,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT IGNORE INTO settings (name, value) VALUES
+('pay.cash.enabled','1'),('pay.mpesa.enabled','1'),('pay.card.enabled','0'),
+('pay.paypal.enabled','0'),('pay.applepay.enabled','0'),('pay.bank.enabled','0'),('pay.other.enabled','0'),
+('bank.name',''),('bank.account_name',''),('bank.account_number',''),
+('mpesa.kind','paybill'),('mpesa.shortcode',''),('mpesa.party_b',''),
+('mpesa.pochi_phone',''),('mpesa.consumer_key',''),('mpesa.consumer_secret',''),
+('mpesa.passkey',''),('mpesa.env','sandbox'),('mpesa.simulate','0'),('app.public_url','');

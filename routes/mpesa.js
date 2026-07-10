@@ -14,12 +14,17 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { requireLogin } = require('../middleware/auth');
+const settings = require('../services/settings');
 
-const SIMULATE = process.env.MPESA_SIMULATE === 'true';
-const CONFIGURED = !!(process.env.MPESA_CONSUMER_KEY && process.env.MPESA_CONSUMER_SECRET &&
-  process.env.MPESA_SHORTCODE && process.env.MPESA_PASSKEY && process.env.MPESA_CALLBACK_URL);
-const BASE = process.env.MPESA_ENV === 'production'
-  ? 'https://api.safaricom.co.ke' : 'https://sandbox.safaricom.co.ke';
+// Configuration now lives in the owner's Settings page (database),
+// with environment variables as fallback for older deployments.
+async function mpesaCfg() {
+  return settings.mpesaConfig(await settings.getAll());
+}
+function baseUrl(cfg) {
+  return cfg.env === 'production'
+    ? 'https://api.safaricom.co.ke' : 'https://sandbox.safaricom.co.ke';
+}
 
 function normalizePhone(raw) {
   const p = String(raw || '').replace(/[\s+-]/g, '');
@@ -28,11 +33,11 @@ function normalizePhone(raw) {
   return null;
 }
 
-async function darajaToken() {
+async function darajaToken(cfg) {
   const auth = Buffer.from(
-    `${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`
+    `${cfg.consumerKey}:${cfg.consumerSecret}`
   ).toString('base64');
-  const res = await fetch(`${BASE}/oauth/v1/generate?grant_type=client_credentials`, {
+  const res = await fetch(`${baseUrl(cfg)}/oauth/v1/generate?grant_type=client_credentials`, {
     headers: { Authorization: `Basic ${auth}` },
   });
   if (!res.ok) throw new Error('M-Pesa auth failed: ' + res.status);
@@ -84,37 +89,43 @@ async function finalizeReceipt(receiptId, mpesaRef) {
 
 // Initiate STK push for a pending receipt. Returns { ok, msg }.
 async function initiateStk(receiptId) {
+  const cfg = await mpesaCfg();
   const [[receipt]] = await db.query(
     "SELECT * FROM receipts WHERE id = ? AND status = 'pending' AND payment_method = 'mpesa'",
     [receiptId]);
   if (!receipt) return { ok: false, msg: 'Receipt not found or already handled' };
+  if (cfg.kind === 'pochi') {
+    return { ok: false, msg: 'Pochi la Biashara has no STK push - enter the M-Pesa confirmation code instead' };
+  }
   const phone = normalizePhone(receipt.customer_phone);
   if (!phone) return { ok: false, msg: 'Invalid phone number' };
 
-  if (SIMULATE || !CONFIGURED) {
+  if (cfg.simulate) {
     await db.query('UPDATE receipts SET checkout_request_id = ? WHERE id = ?',
       ['SIM-' + receiptId + '-' + Date.now(), receiptId]);
     return { ok: true, msg: 'STK push sent (simulation) - use Simulate payment to complete' };
   }
+  if (!cfg.credentialed) {
+    return { ok: false, msg: 'M-Pesa STK is not configured yet - open Settings and add Daraja credentials' };
+  }
 
-  const token = await darajaToken();
+  const token = await darajaToken(cfg);
   const ts = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
-  const password = Buffer.from(
-    process.env.MPESA_SHORTCODE + process.env.MPESA_PASSKEY + ts).toString('base64');
+  const password = Buffer.from(cfg.shortcode + cfg.passkey + ts).toString('base64');
   const payload = {
-    BusinessShortCode: process.env.MPESA_SHORTCODE,
+    BusinessShortCode: cfg.shortcode,
     Password: password,
     Timestamp: ts,
-    TransactionType: process.env.MPESA_TRANSACTION_TYPE || 'CustomerPayBillOnline',
+    TransactionType: cfg.kind === 'till' ? 'CustomerBuyGoodsOnline' : 'CustomerPayBillOnline',
     Amount: Math.max(1, Math.round(Number(receipt.total))),
     PartyA: phone,
-    PartyB: process.env.MPESA_SHORTCODE,
+    PartyB: cfg.kind === 'till' ? cfg.partyB : cfg.shortcode,
     PhoneNumber: phone,
-    CallBackURL: process.env.MPESA_CALLBACK_URL,
+    CallBackURL: cfg.callbackUrl,
     AccountReference: 'DawaTrack-' + receiptId,
     TransactionDesc: 'Chemist purchase',
   };
-  const resp = await fetch(`${BASE}/mpesa/stkpush/v1/processrequest`, {
+  const resp = await fetch(`${baseUrl(cfg)}/mpesa/stkpush/v1/processrequest`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -164,7 +175,8 @@ router.post('/callback', express.json({ limit: '100kb' }), async (req, res) => {
 // Demo-mode stand-in for the Safaricom callback
 router.post('/simulate', requireLogin, async (req, res, next) => {
   try {
-    if (!(SIMULATE || !CONFIGURED)) return res.redirect('/sales?msg=Simulation+is+disabled');
+    const cfg = await mpesaCfg();
+    if (!cfg.simulate) return res.redirect('/sales?msg=Simulation+is+disabled');
     const r = await finalizeReceipt(Number(req.body.receipt_id), 'SIM' + Date.now().toString().slice(-8));
     res.redirect('/sales?msg=' + (r.ok ? 'Payment+confirmed+-+sale+recorded+automatically' : encodeURIComponent('Could not confirm: ' + r.reason)));
   } catch (err) { next(err); }

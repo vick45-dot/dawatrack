@@ -121,24 +121,33 @@
       <input type="hidden" name="items" id="items-json" />
       <label>Payment method
         <select name="payment_method" id="pay-method" onchange="payChanged()" required>
-          <option value="cash">Cash</option>
-          <option value="mpesa">M-Pesa</option>
-          <option value="card">Card</option>
-          <option value="paypal">PayPal</option>
-          <option value="applepay">Apple Pay</option>
-          <option value="other">Other</option>
+          <% const LABELS = { cash: 'Cash', mpesa: mp.kind === 'till' ? 'M-Pesa (Buy Goods)' : mp.kind === 'pochi' ? 'M-Pesa (Pochi la Biashara)' : 'M-Pesa (Paybill)', card: 'Card', paypal: 'PayPal', applepay: 'Apple Pay', bank: 'Bank', other: 'Other' }; %>
+          <% if (!methods.length) { %><option value="">No payment methods enabled - owner must open Settings</option><% } %>
+          <% methods.forEach(m => { %>
+            <option value="<%= m %>"><%= LABELS[m] %></option>
+          <% }) %>
         </select>
       </label>
       <div id="mpesa-fields" style="display:none">
+        <% if (mp.kind === 'pochi') { %>
+          <p class="small pochi-note">Customer sends to Pochi <strong class="mono"><%= mp.pochiPhone || '(set the Pochi number in Settings)' %></strong>, then enter the confirmation code below.</p>
+          <input type="hidden" name="mpesa_mode" id="mpesa-mode" value="manual" />
+        <% } else { %>
         <label>M-Pesa mode
           <select name="mpesa_mode" id="mpesa-mode" onchange="payChanged()">
-            <option value="stk">STK push — sale records itself on confirmation</option>
-            <option value="manual">Manual — enter code from till message</option>
+            <% if (mp.stkReady) { %><option value="stk">STK push — sale records itself on confirmation</option><% } %>
+            <option value="manual">Manual — enter code from the M-Pesa message</option>
           </select>
         </label>
         <label id="phone-field">Customer phone (07.. or 2547..)
           <input type="text" name="customer_phone" placeholder="0712345678" />
         </label>
+        <% } %>
+      </div>
+      <div id="bank-fields" style="display:none">
+        <p class="small pay-note">Customer pays to <strong><%= bank.name || 'the bank' %></strong>,
+          account <strong class="mono"><%= bank.accountNumber || '(set in Settings)' %></strong>
+          (<%= bank.accountName || 'account name not set' %>), then enter the transaction reference below.</p>
       </div>
       <label id="ref-field" style="display:none">Reference / confirmation code
         <input type="text" name="payment_ref" placeholder="e.g. SGH4X2K91P" />
@@ -203,10 +212,14 @@ function renderCart() {
 
 function payChanged() {
   var m = document.getElementById('pay-method').value;
-  var mode = document.getElementById('mpesa-mode').value;
+  var modeEl = document.getElementById('mpesa-mode');
+  var mode = modeEl ? modeEl.value : 'manual';
   document.getElementById('mpesa-fields').style.display = m === 'mpesa' ? 'block' : 'none';
-  document.getElementById('phone-field').style.display = (m === 'mpesa' && mode === 'stk') ? 'flex' : 'none';
-  var refVisible = (m === 'mpesa' && mode === 'manual') || m === 'card' || m === 'paypal' || m === 'applepay' || m === 'other';
+  var phoneField = document.getElementById('phone-field');
+  if (phoneField) phoneField.style.display = (m === 'mpesa' && mode === 'stk') ? 'flex' : 'none';
+  var bankFields = document.getElementById('bank-fields');
+  if (bankFields) bankFields.style.display = m === 'bank' ? 'block' : 'none';
+  var refVisible = (m === 'mpesa' && mode === 'manual') || m === 'card' || m === 'paypal' || m === 'applepay' || m === 'bank' || m === 'other';
   document.getElementById('ref-field').style.display = refVisible ? 'flex' : 'none';
 }
 

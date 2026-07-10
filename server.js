@@ -40,6 +40,7 @@ app.use('/shifts', requireLogin, require('./routes/shifts').router);
 app.use('/products', requireOwner, require('./routes/products'));
 app.use('/purchases', requireOwner, require('./routes/purchases'));
 app.use('/users', requireOwner, require('./routes/users'));
+app.use('/settings', requireOwner, require('./routes/settings'));
 app.use('/', requireOwner, require('./routes/dashboard'));
 
 app.use((err, req, res, next) => {

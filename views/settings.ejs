@@ -1,0 +1,83 @@
+<%- include('partials/header') %>
+
+<h1 class="page-title">Payment settings</h1>
+<% if (msg) { %><p class="flash"><%= msg %></p><% } %>
+
+<form method="POST" action="/settings">
+<div class="two-col">
+  <section class="panel form-panel">
+    <h2>Methods this chemist accepts</h2>
+    <label class="check"><input type="checkbox" name="pay_cash"     <%= s['pay.cash.enabled']==='1'?'checked':'' %> /> Cash (with shift accountability)</label>
+    <label class="check"><input type="checkbox" name="pay_mpesa"    <%= s['pay.mpesa.enabled']==='1'?'checked':'' %> /> M-Pesa</label>
+    <label class="check"><input type="checkbox" name="pay_card"     <%= s['pay.card.enabled']==='1'?'checked':'' %> /> Card (reference recorded)</label>
+    <label class="check"><input type="checkbox" name="pay_paypal"   <%= s['pay.paypal.enabled']==='1'?'checked':'' %> /> PayPal (reference recorded)</label>
+    <label class="check"><input type="checkbox" name="pay_applepay" <%= s['pay.applepay.enabled']==='1'?'checked':'' %> /> Apple Pay (reference recorded)</label>
+    <label class="check"><input type="checkbox" name="pay_bank"     <%= s['pay.bank.enabled']==='1'?'checked':'' %> /> Bank (transaction reference recorded)</label>
+    <label class="check"><input type="checkbox" name="pay_other"    <%= s['pay.other.enabled']==='1'?'checked':'' %> /> Other</label>
+    <p class="muted small">Only ticked methods appear on the sellers' Sell screen.</p>
+
+    <h2 style="margin-top:1.2rem">Bank account (shown to customers)</h2>
+    <label>Bank name
+      <input type="text" name="bank_name" value="<%= s['bank.name'] %>" placeholder="e.g. Equity Bank" />
+    </label>
+    <label>Account name
+      <input type="text" name="bank_account_name" value="<%= s['bank.account_name'] %>" placeholder="e.g. Nakuru Chemist Ltd" />
+    </label>
+    <label>Account number
+      <input type="text" name="bank_account_number" value="<%= s['bank.account_number'] %>" placeholder="e.g. 0123456789" />
+    </label>
+
+    <h2 style="margin-top:1.2rem">App</h2>
+    <label>Public URL (for M-Pesa confirmations)
+      <input type="text" name="public_url" value="<%= s['app.public_url'] %>" placeholder="https://your-app.onrender.com" />
+    </label>
+  </section>
+
+  <section class="panel form-panel">
+    <h2>M-Pesa setup</h2>
+    <label>Type
+      <select name="mpesa_kind">
+        <option value="paybill" <%= s['mpesa.kind']==='paybill'?'selected':'' %>>Paybill</option>
+        <option value="till"    <%= s['mpesa.kind']==='till'?'selected':'' %>>Buy Goods (Till)</option>
+        <option value="pochi"   <%= s['mpesa.kind']==='pochi'?'selected':'' %>>Pochi la Biashara</option>
+      </select>
+    </label>
+    <label>Shortcode (Paybill no. / store no.)
+      <input type="text" name="mpesa_shortcode" value="<%= s['mpesa.shortcode'] %>" placeholder="e.g. 174379" />
+    </label>
+    <label>Till number (Buy Goods only)
+      <input type="text" name="mpesa_party_b" value="<%= s['mpesa.party_b'] %>" placeholder="leave blank if same as shortcode" />
+    </label>
+    <label>Pochi phone number (Pochi only)
+      <input type="text" name="mpesa_pochi_phone" value="<%= s['mpesa.pochi_phone'] %>" placeholder="07XXXXXXXX" />
+    </label>
+    <label>Daraja Consumer Key
+      <input type="text" name="mpesa_consumer_key" value="" placeholder="<%= hasSecret.key ? '(saved - leave blank to keep)' : 'from developer.safaricom.co.ke' %>" autocomplete="off" />
+    </label>
+    <label>Daraja Consumer Secret
+      <input type="password" name="mpesa_consumer_secret" value="" placeholder="<%= hasSecret.secret ? '(saved - leave blank to keep)' : '' %>" autocomplete="new-password" />
+    </label>
+    <label>Daraja Passkey
+      <input type="password" name="mpesa_passkey" value="" placeholder="<%= hasSecret.passkey ? '(saved - leave blank to keep)' : '' %>" autocomplete="new-password" />
+    </label>
+    <label>Environment
+      <select name="mpesa_env">
+        <option value="sandbox"    <%= s['mpesa.env']!=='production'?'selected':'' %>>Sandbox (testing)</option>
+        <option value="production" <%= s['mpesa.env']==='production'?'selected':'' %>>Production (real money)</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" name="mpesa_simulate" <%= s['mpesa.simulate']==='1'?'checked':'' %> /> Test mode — simulate payments (no Safaricom)</label>
+    <label class="check"><input type="checkbox" name="mpesa_clear_credentials" /> Clear saved Daraja credentials</label>
+    <p class="muted small">
+      Status: <strong><%= mp.kind %></strong> ·
+      <% if (mp.kind === 'pochi') { %>manual confirmation codes only (Safaricom has no Pochi STK API)
+      <% } else if (mp.simulate) { %>test mode - STK simulated
+      <% } else if (mp.credentialed) { %>STK push LIVE (<%= mp.env %>)
+      <% } else { %>STK not ready - add credentials above<% } %>
+    </p>
+    <button type="submit" class="btn">Save settings</button>
+  </section>
+</div>
+</form>
+
+<%- include('partials/footer') %>

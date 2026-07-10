@@ -334,3 +334,10 @@ input, select, button { font-size: 16px; }
   .cart-add { grid-template-columns: 1fr; }
   .shift-bar { flex-direction: column; align-items: stretch; }
 }
+
+/* ---------- v4: settings ---------- */
+.check { flex-direction: row; align-items: center; gap: 0.5rem; font-weight: 500; }
+.check input { width: auto; }
+.pochi-note, .pay-note { background: var(--pine-soft); border-radius: 8px; padding: 0.55rem 0.75rem; margin-bottom: 0.6rem; }
+
+.method-bank { background: #EAE4F2; color: #5B3E8C; }

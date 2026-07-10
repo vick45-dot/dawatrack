@@ -3,8 +3,9 @@ const router = express.Router();
 const db = require('../db');
 const { finalizeReceipt, initiateStk } = require('./mpesa');
 const { openShiftFor } = require('./shifts');
+const settings = require('../services/settings');
 
-const METHODS = ['cash', 'mpesa', 'card', 'paypal', 'applepay', 'other'];
+const METHODS = ['cash', 'mpesa', 'card', 'paypal', 'applepay', 'bank', 'other'];
 
 // ---------- POS screen ----------
 router.get('/', async (req, res, next) => {
@@ -54,10 +55,19 @@ router.get('/', async (req, res, next) => {
       `, [user.id]);
     }
 
+    const sMap = await settings.getAll();
+    const methods = settings.enabledMethods(sMap);
+    const mp = settings.mpesaConfig(sMap);
+
     res.render('sales', {
       page: 'sales', products, receipts, myShift, shiftCashSales, pending,
-      mpesaSimulation: process.env.MPESA_SIMULATE === 'true' ||
-        !(process.env.MPESA_CONSUMER_KEY && process.env.MPESA_CALLBACK_URL),
+      methods, mp,
+      bank: {
+        name: sMap['bank.name'] || '',
+        accountName: sMap['bank.account_name'] || '',
+        accountNumber: sMap['bank.account_number'] || '',
+      },
+      mpesaSimulation: mp.simulate,
       msg: req.query.msg,
     });
   } catch (err) { next(err); }
@@ -70,8 +80,12 @@ router.post('/checkout', async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     const user = req.session.user;
-    const method = METHODS.includes(req.body.payment_method) ? req.body.payment_method : null;
-    if (!method) { conn.release(); return res.redirect('/sales?msg=Choose+a+payment+method'); }
+    const sMap = await settings.getAll();
+    const enabled = settings.enabledMethods(sMap);
+    const mp = settings.mpesaConfig(sMap);
+    const method = METHODS.includes(req.body.payment_method) && enabled.includes(req.body.payment_method)
+      ? req.body.payment_method : null;
+    if (!method) { conn.release(); return res.redirect('/sales?msg=That+payment+method+is+not+enabled'); }
 
     let items;
     try { items = JSON.parse(req.body.items || '[]'); } catch { items = []; }
@@ -119,12 +133,21 @@ router.post('/checkout', async (req, res, next) => {
     }
     if (!clean.length) { conn.release(); return res.redirect('/sales?msg=No+valid+items'); }
 
-    const isStk = method === 'mpesa' && req.body.mpesa_mode === 'stk';
+    const isStk = method === 'mpesa' && req.body.mpesa_mode === 'stk' && mp.stkReady;
+    if (method === 'mpesa' && req.body.mpesa_mode === 'stk' && !mp.stkReady) {
+      conn.release();
+      return res.redirect('/sales?msg=' + encodeURIComponent(
+        mp.kind === 'pochi' ? 'Pochi has no STK - enter the confirmation code' :
+        'M-Pesa STK is not configured - open Settings'));
+    }
     const phone = isStk ? String(req.body.customer_phone || '').trim() : null;
     if (isStk && !phone) { conn.release(); return res.redirect('/sales?msg=Enter+the+customer+phone+number'); }
     const ref = (req.body.payment_ref || '').trim() || null;
     if (method === 'mpesa' && !isStk && !ref) {
       conn.release(); return res.redirect('/sales?msg=Enter+the+M-Pesa+confirmation+code');
+    }
+    if (method === 'bank' && !ref) {
+      conn.release(); return res.redirect('/sales?msg=Enter+the+bank+transaction+reference');
     }
 
     // Create the receipt (pending) with its items
