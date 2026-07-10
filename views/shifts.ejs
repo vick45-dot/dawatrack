@@ -1,0 +1,34 @@
+<%- include('partials/header') %>
+
+<h1 class="page-title">Cash shifts</h1>
+
+<section class="panel">
+  <h2>Shift history &amp; variance</h2>
+  <p class="muted small">Expected = float + cash sales. Variance = declared − expected. A negative variance is cash missing from the drawer.</p>
+  <table>
+    <thead>
+      <tr><th>Seller</th><th>Opened</th><th>Closed</th><th class="num">Float</th><th class="num">Cash sales</th><th class="num">Expected</th><th class="num">Declared</th><th class="num">Variance</th></tr>
+    </thead>
+    <tbody>
+      <% if (!shifts.length) { %>
+        <tr><td colspan="8" class="muted">No shifts yet. Sellers open one from their Sales page before taking cash.</td></tr>
+      <% } %>
+      <% shifts.forEach(s => { %>
+      <tr>
+        <td><%= s.seller_name %></td>
+        <td class="mono muted"><%= new Date(s.opened_at).toLocaleString('en-KE',{dateStyle:'short',timeStyle:'short'}) %></td>
+        <td class="mono muted"><%= s.closed_at ? new Date(s.closed_at).toLocaleString('en-KE',{dateStyle:'short',timeStyle:'short'}) : 'OPEN' %></td>
+        <td class="num mono"><%= kes(s.opening_float) %></td>
+        <td class="num mono"><%= s.cash_receipts %></td>
+        <td class="num mono"><%= s.closed_at ? kes(s.expected_cash) : kes(s.live_expected) + ' (live)' %></td>
+        <td class="num mono"><%= s.declared_cash !== null ? kes(s.declared_cash) : '—' %></td>
+        <td class="num mono <%= s.variance === null ? '' : (Number(s.variance) < 0 ? 'loss' : 'gain') %>">
+          <%= s.variance !== null ? kes(s.variance) : '—' %>
+        </td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
+
+<%- include('partials/footer') %>

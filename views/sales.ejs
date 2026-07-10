@@ -1,39 +1,88 @@
 <%- include('partials/header') %>
 
-<h1 class="page-title"><%= user.role === 'owner' ? 'Sales' : 'Record sales' %></h1>
+<h1 class="page-title"><%= user.role === 'owner' ? 'Point of sale' : 'Sell' %></h1>
 <% if (msg) { %><p class="flash"><%= msg %></p><% } %>
 
+<!-- Cash shift banner -->
+<section class="panel shift-bar">
+  <% if (myShift) { %>
+    <div>
+      <strong>Cash shift open</strong> since <%= new Date(myShift.opened_at).toLocaleTimeString('en-KE',{timeStyle:'short'}) %>
+      · float <%= kes(myShift.opening_float) %> · <%= shiftCashSales %> cash sale<%= shiftCashSales === 1 ? '' : 's' %>
+    </div>
+    <form method="POST" action="/shifts/close" class="inline-form">
+      <input type="number" name="declared_cash" min="0" step="0.01" required placeholder="Counted cash in drawer (KES)" />
+      <button type="submit" class="btn ghost">Close shift</button>
+    </form>
+  <% } else { %>
+    <div><strong>No cash shift open.</strong> Open one before taking cash payments.</div>
+    <form method="POST" action="/shifts/open" class="inline-form">
+      <input type="number" name="opening_float" min="0" step="0.01" placeholder="Opening float (KES)" />
+      <button type="submit" class="btn ghost">Open shift</button>
+    </form>
+  <% } %>
+</section>
+
+<!-- Pending M-Pesa payments -->
+<% if (pending.length) { %>
+<section class="panel alert-panel warn">
+  <h2>Waiting for M-Pesa confirmation</h2>
+  <% pending.forEach(p => { %>
+    <div class="pending-row">
+      <span>Receipt #<%= p.id %> · <%= kes(p.total) %> · <%= p.customer_phone || '' %></span>
+      <span class="pending-actions">
+        <form method="POST" action="/mpesa/stk" class="inline-form">
+          <input type="hidden" name="receipt_id" value="<%= p.id %>" />
+          <button class="btn ghost btn-small">Resend STK</button>
+        </form>
+        <% if (mpesaSimulation) { %>
+        <form method="POST" action="/mpesa/simulate" class="inline-form">
+          <input type="hidden" name="receipt_id" value="<%= p.id %>" />
+          <button class="btn btn-small">Simulate payment</button>
+        </form>
+        <% } %>
+      </span>
+    </div>
+  <% }) %>
+  <p class="muted small">When the customer pays, the sale records itself automatically.</p>
+</section>
+<% } %>
+
 <div class="two-col">
+  <!-- Receipts list -->
   <section class="panel">
-    <h2><%= user.role === 'owner' ? 'Outgoing ledger' : 'My sales today' %></h2>
+    <h2><%= user.role === 'owner' ? 'Receipts' : 'My receipts today' %></h2>
     <table>
       <thead>
         <% if (user.role === 'owner') { %>
-        <tr><th>Date</th><th>Product</th><th>Sold by</th><th class="num">Qty</th><th class="num">Sell price</th><th class="num">Revenue</th><th class="num">Profit</th></tr>
+        <tr><th>Date</th><th>#</th><th>Sold by</th><th>Method</th><th>Ref</th><th class="num">Items</th><th class="num">Total</th><th class="num">Profit</th><th>Status</th></tr>
         <% } else { %>
-        <tr><th>Time</th><th>Product</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th></tr>
+        <tr><th>Time</th><th>#</th><th>Method</th><th class="num">Items</th><th class="num">Total</th><th>Status</th></tr>
         <% } %>
       </thead>
       <tbody>
-        <% if (!sales.length) { %>
-          <tr><td colspan="7" class="muted"><%= user.role === 'owner' ? 'No sales recorded yet.' : 'No sales yet today. Record your first one on the right.' %></td></tr>
+        <% if (!receipts.length) { %>
+          <tr><td colspan="9" class="muted">No receipts yet<%= user.role === 'owner' ? '' : ' today' %>.</td></tr>
         <% } %>
-        <% sales.forEach(s => { %>
+        <% receipts.forEach(r => { %>
         <tr>
           <% if (user.role === 'owner') { %>
-          <td class="mono muted"><%= new Date(s.sold_at).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' }) %></td>
-          <td><%= s.product_name %></td>
-          <td class="muted"><%= s.seller_name || '—' %></td>
-          <td class="num mono"><%= s.quantity %></td>
-          <td class="num mono"><%= kes(s.selling_price) %></td>
-          <td class="num mono"><%= kes(s.line_revenue) %></td>
-          <td class="num mono <%= s.line_profit >= 0 ? 'gain' : 'loss' %>"><%= kes(s.line_profit) %></td>
+          <td class="mono muted"><%= new Date(r.created_at).toLocaleString('en-KE',{dateStyle:'short',timeStyle:'short'}) %></td>
+          <td class="mono"><%= r.id %></td>
+          <td class="muted"><%= r.seller_name || '—' %></td>
+          <td><span class="method method-<%= r.payment_method %>"><%= r.payment_method %></span></td>
+          <td class="mono muted"><%= r.payment_ref || '—' %></td>
+          <td class="num mono"><%= r.line_count %></td>
+          <td class="num mono"><%= kes(r.total) %></td>
+          <td class="num mono <%= (r.profit || 0) >= 0 ? 'gain' : 'loss' %>"><%= r.profit !== null ? kes(r.profit) : '—' %></td>
+          <td><span class="status status-<%= r.status %>"><%= r.status %></span></td>
           <% } else { %>
-          <td class="mono muted"><%= new Date(s.sold_at).toLocaleTimeString('en-KE', { timeStyle: 'short' }) %></td>
-          <td><%= s.product_name %></td>
-          <td class="num mono"><%= s.quantity %></td>
-          <td class="num mono"><%= kes(s.selling_price) %></td>
-          <td class="num mono"><%= kes(s.line_revenue) %></td>
+          <td class="mono muted"><%= new Date(r.created_at).toLocaleTimeString('en-KE',{timeStyle:'short'}) %></td>
+          <td class="mono"><%= r.id %></td>
+          <td><span class="method method-<%= r.payment_method %>"><%= r.payment_method %></span></td>
+          <td class="num mono"><%= r.line_count %></td>
+          <td class="num mono"><%= kes(r.total) %></td>
+          <td><span class="status status-<%= r.status %>"><%= r.status %></span></td>
           <% } %>
         </tr>
         <% }) %>
@@ -41,50 +90,133 @@
     </table>
   </section>
 
+  <!-- POS cart -->
   <section class="panel form-panel">
-    <h2>Record sale</h2>
-    <form method="POST" action="/sales">
-      <label>Product (stock · price)
-        <select name="product_id" id="product_id" required onchange="showPrice()">
+    <h2>New sale</h2>
+    <div class="cart-add">
+      <label>Product
+        <select id="pos-product">
           <option value="">Choose product…</option>
           <% products.forEach(p => { %>
-            <option value="<%= p.id %>" data-price="<%= p.selling_price !== null ? p.selling_price : '' %>" <%= p.on_hand <= 0 ? 'disabled' : '' %>>
+            <option value="<%= p.id %>" data-name="<%= p.name %>" data-price="<%= p.selling_price !== null ? p.selling_price : '' %>" data-stock="<%= p.on_hand %>" <%= p.on_hand <= 0 ? 'disabled' : '' %>>
               <%= p.name %> — <%= p.on_hand %> left<%= p.selling_price !== null ? ' · ' + kes(p.selling_price) : '' %>
             </option>
           <% }) %>
         </select>
       </label>
-      <label>Quantity sold
-        <input type="number" name="quantity" min="1" required />
+      <label>Qty
+        <input type="number" id="pos-qty" min="1" value="1" />
       </label>
-      <% if (user.role === 'owner') { %>
-      <label>Selling price per unit (KES)
-        <input type="number" name="selling_price" id="selling_price" min="0" step="0.01" placeholder="leave blank to use preset" />
+      <button type="button" class="btn ghost" onclick="addItem()">Add item</button>
+    </div>
+
+    <table id="cart-table" style="display:none">
+      <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Line</th><th></th></tr></thead>
+      <tbody id="cart-body"></tbody>
+      <tfoot><tr><th colspan="3" class="num">Total</th><th class="num mono" id="cart-total">KES 0.00</th><th></th></tr></tfoot>
+    </table>
+    <p class="muted small" id="cart-empty">Cart is empty — add items above.</p>
+
+    <form method="POST" action="/sales/checkout" id="checkout-form">
+      <input type="hidden" name="items" id="items-json" />
+      <label>Payment method
+        <select name="payment_method" id="pay-method" onchange="payChanged()" required>
+          <option value="cash">Cash</option>
+          <option value="mpesa">M-Pesa</option>
+          <option value="card">Card</option>
+          <option value="paypal">PayPal</option>
+          <option value="applepay">Apple Pay</option>
+          <option value="other">Other</option>
+        </select>
       </label>
-      <% } else { %>
-      <label>Price per unit (set by owner)
-        <input type="text" id="price_display" value="—" readonly />
+      <div id="mpesa-fields" style="display:none">
+        <label>M-Pesa mode
+          <select name="mpesa_mode" id="mpesa-mode" onchange="payChanged()">
+            <option value="stk">STK push — sale records itself on confirmation</option>
+            <option value="manual">Manual — enter code from till message</option>
+          </select>
+        </label>
+        <label id="phone-field">Customer phone (07.. or 2547..)
+          <input type="text" name="customer_phone" placeholder="0712345678" />
+        </label>
+      </div>
+      <label id="ref-field" style="display:none">Reference / confirmation code
+        <input type="text" name="payment_ref" placeholder="e.g. SGH4X2K91P" />
       </label>
-      <% } %>
-      <button type="submit" class="btn">Record sale</button>
+      <button type="submit" class="btn" onclick="return submitCart()">Complete sale</button>
     </form>
-    <% if (user.role === 'owner') { %>
-    <p class="muted small">Sellers always sell at each product's preset price. Set it under <a href="/products">Products</a>.</p>
-    <% } else { %>
-    <p class="muted small">The price is fixed by the owner and applied automatically.</p>
-    <% } %>
+    <p class="muted small">
+      <% if (user.role === 'seller') { %>Prices are set by the owner and applied automatically.<% } else { %>You can tap a price in the cart to override it for this sale.<% } %>
+    </p>
   </section>
 </div>
 
 <script>
-function showPrice() {
-  var sel = document.getElementById('product_id');
-  var price = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].getAttribute('data-price') : '';
-  var display = document.getElementById('price_display');
-  var ownerInput = document.getElementById('selling_price');
-  if (display) display.value = price ? 'KES ' + Number(price).toFixed(2) : 'Not set — ask the owner';
-  if (ownerInput) ownerInput.placeholder = price ? 'preset: ' + Number(price).toFixed(2) : 'no preset — type a price';
+var IS_OWNER = <%= user.role === 'owner' ? 'true' : 'false' %>;
+var cart = [];
+
+function addItem() {
+  var sel = document.getElementById('pos-product');
+  var opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return;
+  var qty = parseInt(document.getElementById('pos-qty').value, 10) || 1;
+  var price = opt.getAttribute('data-price');
+  if (price === '' && !IS_OWNER) { alert('No preset price for this product - ask the owner to set one.'); return; }
+  var existing = cart.find(function (c) { return c.product_id == opt.value; });
+  if (existing) existing.quantity += qty;
+  else cart.push({ product_id: Number(opt.value), name: opt.getAttribute('data-name'),
+                   quantity: qty, unit_price: price === '' ? 0 : Number(price) });
+  sel.selectedIndex = 0;
+  document.getElementById('pos-qty').value = 1;
+  renderCart();
 }
+
+function removeItem(i) { cart.splice(i, 1); renderCart(); }
+
+function editPrice(i) {
+  if (!IS_OWNER) return;
+  var v = prompt('Price per unit (KES) for ' + cart[i].name, cart[i].unit_price);
+  if (v === null) return;
+  var n = parseFloat(v);
+  if (!isNaN(n) && n >= 0) { cart[i].unit_price = n; renderCart(); }
+}
+
+function renderCart() {
+  var body = document.getElementById('cart-body');
+  body.innerHTML = '';
+  var total = 0;
+  cart.forEach(function (c, i) {
+    var line = c.quantity * c.unit_price;
+    total += line;
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + c.name + '</td>' +
+      '<td class="num mono">' + c.quantity + '</td>' +
+      '<td class="num mono" ' + (IS_OWNER ? 'style="cursor:pointer;text-decoration:underline dotted" onclick="editPrice(' + i + ')"' : '') + '>' + c.unit_price.toFixed(2) + '</td>' +
+      '<td class="num mono">' + line.toFixed(2) + '</td>' +
+      '<td class="num"><button type="button" class="btn ghost btn-small" onclick="removeItem(' + i + ')">✕</button></td>';
+    body.appendChild(tr);
+  });
+  document.getElementById('cart-table').style.display = cart.length ? 'table' : 'none';
+  document.getElementById('cart-empty').style.display = cart.length ? 'none' : 'block';
+  document.getElementById('cart-total').textContent = 'KES ' + total.toFixed(2);
+}
+
+function payChanged() {
+  var m = document.getElementById('pay-method').value;
+  var mode = document.getElementById('mpesa-mode').value;
+  document.getElementById('mpesa-fields').style.display = m === 'mpesa' ? 'block' : 'none';
+  document.getElementById('phone-field').style.display = (m === 'mpesa' && mode === 'stk') ? 'flex' : 'none';
+  var refVisible = (m === 'mpesa' && mode === 'manual') || m === 'card' || m === 'paypal' || m === 'applepay' || m === 'other';
+  document.getElementById('ref-field').style.display = refVisible ? 'flex' : 'none';
+}
+
+function submitCart() {
+  if (!cart.length) { alert('Add at least one item first.'); return false; }
+  document.getElementById('items-json').value = JSON.stringify(
+    cart.map(function (c) { return { product_id: c.product_id, quantity: c.quantity, unit_price: c.unit_price }; }));
+  return true;
+}
+payChanged();
 </script>
 
 <%- include('partials/footer') %>

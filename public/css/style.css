@@ -265,3 +265,72 @@ input:focus, select:focus { border-color: var(--pine); }
 .userbox { display: flex; align-items: center; gap: 0.7rem; }
 .userbox-name { color: #C7D6D0; font-size: 0.88rem; }
 input[readonly] { background: var(--pine-soft); color: var(--ink); font-family: 'IBM Plex Mono', monospace; }
+
+/* ---------- v2.1: phone & tablet polish ---------- */
+/* Inputs at 16px stop iOS Safari from auto-zooming on focus */
+input, select, button { font-size: 16px; }
+
+@media (max-width: 860px) {
+  /* On phones, the entry form comes first - it's what the counter needs */
+  .two-col .form-panel { order: -1; }
+}
+
+@media (max-width: 720px) {
+  .wrap { padding: 1rem 0.85rem 2.2rem; }
+  .page-title { font-size: 1.45rem; margin-bottom: 0.9rem; }
+
+  /* Top bar: brand + user on the first row, nav scrolls sideways below */
+  .topbar { padding: 0.6rem 0.85rem; }
+  .topbar nav {
+    order: 3;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .topbar nav::-webkit-scrollbar { display: none; }
+  .topbar nav a { white-space: nowrap; font-size: 0.9rem; padding: 0.35rem 0.75rem; }
+  .userbox { margin-left: auto; }
+  .userbox-name { font-size: 0.8rem; }
+
+  /* Panels & tables: tighter, and wide ledgers scroll sideways inside
+     their panel instead of crushing the columns */
+  .panel { padding: 0.9rem; }
+  .panel table { min-width: 540px; }
+  table { font-size: 0.86rem; }
+  th, td { padding: 0.45rem 0.45rem; }
+
+  .stat-value { font-size: 1.2rem; }
+  .chart-box { height: 240px; }
+  .login-card { padding: 1.5rem; }
+}
+
+@media (max-width: 400px) {
+  .stat-row { grid-template-columns: 1fr; }
+}
+
+/* ---------- v3: POS, payments, shifts ---------- */
+.shift-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; border-left: 4px solid var(--pine); }
+.inline-form { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.inline-form input { max-width: 230px; }
+.cart-add { display: grid; grid-template-columns: 1fr 84px auto; gap: 0.6rem; align-items: end; margin-bottom: 0.9rem; }
+.pending-row { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.45rem 0; border-bottom: 1px dashed var(--line); flex-wrap: wrap; }
+.pending-row:last-of-type { border-bottom: none; }
+.pending-actions { display: flex; gap: 0.5rem; }
+.method { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; background: var(--pine-soft); color: var(--pine); }
+.method-cash { background: #EFE9DC; color: #6B5410; }
+.method-mpesa { background: #E1F2E7; color: #1E7A3C; }
+.method-card, .method-applepay { background: #E5E9F5; color: #2C4A9A; }
+.method-paypal { background: #E2ECF7; color: #1C5687; }
+.method-other { background: #EEE; color: #555; }
+.status { font-size: 0.8rem; font-weight: 600; }
+.status-paid { color: var(--pine); }
+.status-pending { color: var(--amber); }
+.status-failed { color: var(--loss); }
+#cart-table td, #cart-table th { padding: 0.4rem 0.45rem; }
+@media (max-width: 720px) {
+  .cart-add { grid-template-columns: 1fr; }
+  .shift-bar { flex-direction: column; align-items: stretch; }
+}

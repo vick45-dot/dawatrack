@@ -91,6 +91,24 @@
     </table>
     <% } %>
 
+    <h2 style="margin-top:1.4rem">Revenue by payment method today</h2>
+    <% if (!methodToday.length) { %>
+      <p class="muted">No paid receipts yet today.</p>
+    <% } else { %>
+    <table>
+      <thead><tr><th>Method</th><th class="num">Receipts</th><th class="num">Revenue</th></tr></thead>
+      <tbody>
+        <% methodToday.forEach(m => { %>
+        <tr>
+          <td><span class="method method-<%= m.payment_method %>"><%= m.payment_method %></span></td>
+          <td class="num mono"><%= m.receipts %></td>
+          <td class="num mono"><%= kes(m.revenue) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+
     <h2 style="margin-top:1.4rem">Sales by seller today</h2>
     <% if (!sellerToday.length) { %>
       <p class="muted">Nothing sold yet today.</p>

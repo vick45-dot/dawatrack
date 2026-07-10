@@ -28,11 +28,13 @@ app.use((req, res, next) => {
 app.locals.kes = (n) =>
   'KES ' + Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// Public: login/logout
+// Public: login/logout + the M-Pesa confirmation callback (Safaricom calls this)
 app.use('/', require('./routes/auth'));
+app.use('/mpesa', require('./routes/mpesa').router);
 
-// Sellers + owner: recording sales
+// Sellers + owner: POS and cash shifts
 app.use('/sales', requireLogin, require('./routes/sales'));
+app.use('/shifts', requireLogin, require('./routes/shifts').router);
 
 // Owner only: everything else
 app.use('/products', requireOwner, require('./routes/products'));

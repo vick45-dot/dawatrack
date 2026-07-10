@@ -76,6 +76,13 @@ router.get('/', async (req, res, next) => {
       GROUP BY p.id ORDER BY profit DESC LIMIT 5
     `);
 
+    // Revenue by payment method today
+    const [methodToday] = await db.query(`
+      SELECT payment_method, COUNT(*) AS receipts, SUM(total) AS revenue
+      FROM receipts WHERE status = 'paid' AND DATE(created_at) = CURDATE()
+      GROUP BY payment_method ORDER BY revenue DESC
+    `);
+
     // Who sold what today (per-seller accountability)
     const [sellerToday] = await db.query(`
       SELECT COALESCE(u.name, 'Before user tracking') AS seller_name,
@@ -90,7 +97,7 @@ router.get('/', async (req, res, next) => {
     `);
 
     res.render('dashboard', {
-      page: 'dashboard', today, month, stock, stockValue, lowStock, expiring, topProducts, sellerToday,
+      page: 'dashboard', today, month, stock, stockValue, lowStock, expiring, topProducts, sellerToday, methodToday,
     });
   } catch (err) { next(err); }
 });
