@@ -28,6 +28,14 @@ app.use((req, res, next) => {
 app.locals.kes = (n) =>
   'KES ' + Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Health check: confirms app AND database are alive. Public on purpose -
+// an uptime monitor pings it to keep the free tiers awake.
+const db = require('./db');
+app.get('/health', async (req, res) => {
+  try { await db.query('SELECT 1'); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ ok: false, error: 'database unreachable' }); }
+});
+
 // Public: login/logout + the M-Pesa confirmation callback (Safaricom calls this)
 app.use('/', require('./routes/auth'));
 app.use('/mpesa', require('./routes/mpesa').router);

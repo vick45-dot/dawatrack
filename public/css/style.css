@@ -341,3 +341,12 @@ input, select, button { font-size: 16px; }
 .pochi-note, .pay-note { background: var(--pine-soft); border-radius: 8px; padding: 0.55rem 0.75rem; margin-bottom: 0.6rem; }
 
 .method-bank { background: #EAE4F2; color: #5B3E8C; }
+
+/* ---------- v5.1: analytics multi-chart ---------- */
+.chart-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.9rem; margin-bottom: 1rem; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--card); }
+.seg button { font: inherit; font-size: 0.88rem; font-weight: 500; border: none; background: transparent; padding: 0.35rem 0.95rem; cursor: pointer; color: var(--ink); }
+.seg button.active { background: var(--ink); color: #fff; }
+.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+.chart-box-sm { height: 260px; }
+@media (max-width: 720px) { .chart-box-sm { height: 220px; } }

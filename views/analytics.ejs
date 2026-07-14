@@ -32,6 +32,17 @@
   <% if (!rows.length) { %>
     <p class="muted">No sales in this period yet.</p>
   <% } else { %>
+    <div class="chart-controls">
+      <span class="seg" id="type-seg">
+        <button type="button" data-type="bar" class="active">Bar</button>
+        <button type="button" data-type="line">Line</button>
+        <button type="button" data-type="area">Area</button>
+      </span>
+      <label class="check"><input type="checkbox" id="ds-revenue" checked /> Revenue</label>
+      <label class="check"><input type="checkbox" id="ds-cost" /> Cost</label>
+      <label class="check"><input type="checkbox" id="ds-profit" checked /> Profit</label>
+      <label class="check"><input type="checkbox" id="ds-margin" /> Margin %</label>
+    </div>
     <div class="chart-box"><canvas id="plChart"></canvas></div>
     <table>
       <thead>
@@ -52,30 +63,108 @@
   <% } %>
 </section>
 
+<div class="chart-grid">
+  <section class="panel">
+    <h2>Profit by payment method</h2>
+    <div class="chart-box-sm"><canvas id="methodChart"></canvas></div>
+    <p class="muted small" id="method-empty" style="display:none">No sales in this period.</p>
+  </section>
+  <section class="panel">
+    <h2>Profit by product (top 8)</h2>
+    <div class="chart-box-sm"><canvas id="productChart"></canvas></div>
+    <p class="muted small" id="product-empty" style="display:none">No sales in this period.</p>
+  </section>
+  <section class="panel">
+    <h2>Profit by seller</h2>
+    <div class="chart-box-sm"><canvas id="sellerChart"></canvas></div>
+    <p class="muted small" id="seller-empty" style="display:none">No sales in this period.</p>
+  </section>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
   const data = <%- chartData %>;
-  if (data.labels.length) {
-    new Chart(document.getElementById('plChart'), {
-      type: 'bar',
-      data: {
-        labels: data.labels,
-        datasets: [
-          { label: 'Revenue (KES)', data: data.revenue, backgroundColor: 'rgba(14,107,92,0.25)', borderColor: '#0E6B5C', borderWidth: 1.5 },
-          { label: 'Profit (KES)',  data: data.profit,  backgroundColor: '#0E6B5C' }
-        ]
-      },
+  const C = { pine:'#0E6B5C', pineSoft:'rgba(14,107,92,0.22)', amber:'#B4720F', loss:'#A93B2A',
+              purple:'#5B3E8C', blue:'#2C6E91', gray:'#8A9A94' };
+  const PALETTE = [C.pine, C.amber, C.purple, C.blue, C.loss, C.gray, '#4E8F5B', '#B05586'];
+  const mono = { font: { family: 'IBM Plex Mono' } };
+  let mainChart = null;
+  let mainType = 'bar';
+
+  function buildDatasets() {
+    const asType = mainType === 'area' ? 'line' : mainType;
+    const fill = mainType === 'area';
+    const ds = [];
+    if (document.getElementById('ds-revenue').checked)
+      ds.push({ type: asType, label: 'Revenue (KES)', data: data.revenue, fill,
+        backgroundColor: C.pineSoft, borderColor: C.pine, borderWidth: 1.6, tension: 0.25, yAxisID: 'y' });
+    if (document.getElementById('ds-cost').checked)
+      ds.push({ type: asType, label: 'Cost (KES)', data: data.cost, fill,
+        backgroundColor: 'rgba(180,114,15,0.20)', borderColor: C.amber, borderWidth: 1.6, tension: 0.25, yAxisID: 'y' });
+    if (document.getElementById('ds-profit').checked)
+      ds.push({ type: asType, label: 'Profit (KES)', data: data.profit, fill,
+        backgroundColor: mainType === 'bar' ? C.pine : 'rgba(14,107,92,0.35)',
+        borderColor: C.pine, borderWidth: 1.6, tension: 0.25, yAxisID: 'y' });
+    if (document.getElementById('ds-margin').checked)
+      ds.push({ type: 'line', label: 'Margin %', data: data.margin, fill: false,
+        borderColor: C.purple, borderDash: [6, 4], borderWidth: 2, pointRadius: 2, tension: 0.25, yAxisID: 'y1' });
+    return ds;
+  }
+
+  function renderMain() {
+    if (!data.labels.length) return;
+    if (mainChart) mainChart.destroy();
+    const useMarginAxis = document.getElementById('ds-margin').checked;
+    mainChart = new Chart(document.getElementById('plChart'), {
+      data: { labels: data.labels, datasets: buildDatasets() },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: { legend: { labels: { font: { family: 'IBM Plex Sans' } } } },
         scales: {
-          y: { ticks: { font: { family: 'IBM Plex Mono' } } },
-          x: { ticks: { font: { family: 'IBM Plex Mono' } } }
+          x: { ticks: mono },
+          y: { ticks: mono, title: { display: true, text: 'KES' } },
+          y1: { display: useMarginAxis, position: 'right', grid: { drawOnChartArea: false },
+                ticks: { ...mono, callback: v => v + '%' } }
         }
       }
     });
   }
+
+  document.querySelectorAll('#type-seg button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#type-seg button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active'); mainType = b.dataset.type; renderMain();
+  }));
+  ['ds-revenue','ds-cost','ds-profit','ds-margin'].forEach(id =>
+    document.getElementById(id).addEventListener('change', renderMain));
+
+  function breakdown(canvasId, emptyId, set, horizontal) {
+    if (!set.labels.length) {
+      document.getElementById(canvasId).style.display = 'none';
+      document.getElementById(emptyId).style.display = 'block';
+      return;
+    }
+    const negatives = set.profit.some(v => v < 0);
+    const type = (canvasId === 'methodChart' && !negatives) ? 'doughnut' : 'bar';
+    new Chart(document.getElementById(canvasId), {
+      type,
+      data: { labels: set.labels, datasets: [{ label: 'Profit (KES)', data: set.profit,
+        backgroundColor: set.labels.map((_, i) => PALETTE[i % PALETTE.length]) }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: horizontal && type === 'bar' ? 'y' : 'x',
+        plugins: { legend: { display: type === 'doughnut', position: 'bottom',
+          labels: { font: { family: 'IBM Plex Sans', size: 11 } } } },
+        scales: type === 'doughnut' ? {} : {
+          x: { ticks: mono }, y: { ticks: { ...mono, autoSkip: false } }
+        }
+      }
+    });
+  }
+
+  renderMain();
+  breakdown('methodChart', 'method-empty', data.byMethod, false);
+  breakdown('productChart', 'product-empty', data.byProduct, true);
+  breakdown('sellerChart', 'seller-empty', data.bySeller, false);
 </script>
 
 <%- include('partials/footer') %>
