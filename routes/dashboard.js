@@ -149,10 +149,46 @@ const PERIODS = {
   },
 };
 
+const RANGES = {
+  daily:   "s.sold_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)",
+  weekly:  "s.sold_at >= DATE_SUB(CURDATE(), INTERVAL 12 WEEK)",
+  monthly: "s.sold_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)",
+  yearly:  "1=1",
+};
+
 router.get('/analytics', async (req, res, next) => {
   try {
     const period = PERIODS[req.query.period] ? req.query.period : 'daily';
+    const range = RANGES[period];
     const [rows] = await db.query(PERIODS[period].sql);
+
+    // Profit by payment method (legacy sales without receipts shown honestly)
+    const [byMethod] = await db.query(`
+      SELECT COALESCE(r.payment_method, 'unspecified') AS label,
+             SUM(s.quantity * (s.selling_price - s.cost_price)) AS profit,
+             SUM(s.quantity * s.selling_price)                  AS revenue
+      FROM sales s LEFT JOIN receipts r ON r.id = s.receipt_id
+      WHERE ${range}
+      GROUP BY COALESCE(r.payment_method, 'unspecified')
+      ORDER BY profit DESC`);
+
+    // Profit by product (top 8 in the window)
+    const [byProduct] = await db.query(`
+      SELECT p.name AS label,
+             SUM(s.quantity * (s.selling_price - s.cost_price)) AS profit
+      FROM sales s JOIN products p ON p.id = s.product_id
+      WHERE ${range}
+      GROUP BY p.id, p.name
+      ORDER BY profit DESC LIMIT 8`);
+
+    // Profit by seller
+    const [bySeller] = await db.query(`
+      SELECT COALESCE(u.name, 'Before user tracking') AS label,
+             SUM(s.quantity * (s.selling_price - s.cost_price)) AS profit
+      FROM sales s LEFT JOIN users u ON u.id = s.user_id
+      WHERE ${range}
+      GROUP BY s.user_id, u.name
+      ORDER BY profit DESC`);
 
     const totals = rows.reduce(
       (t, r) => ({
@@ -172,7 +208,13 @@ router.get('/analytics', async (req, res, next) => {
       chartData: JSON.stringify({
         labels: rows.map(r => String(r.bucket)),
         revenue: rows.map(r => Number(r.revenue)),
+        cost: rows.map(r => Number(r.cost)),
         profit: rows.map(r => Number(r.profit)),
+        margin: rows.map(r => Number(r.revenue) > 0
+          ? Number(((Number(r.profit) / Number(r.revenue)) * 100).toFixed(1)) : 0),
+        byMethod: { labels: byMethod.map(x => x.label), profit: byMethod.map(x => Number(x.profit)), revenue: byMethod.map(x => Number(x.revenue)) },
+        byProduct: { labels: byProduct.map(x => x.label), profit: byProduct.map(x => Number(x.profit)) },
+        bySeller: { labels: bySeller.map(x => x.label), profit: bySeller.map(x => Number(x.profit)) },
       }),
     });
   } catch (err) { next(err); }
